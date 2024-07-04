@@ -109,7 +109,7 @@ def main():
                 img_url = random.choice(imgs)['src']
                 if not img_url.startswith('http'):
                     img_url = url + img_url
-                print(f"這是你的貓貓: {img_url}，要加油哦！")
+                print(f"這是您的貓貓: {img_url}，要加油哦！")
             except Exception as e:
                 print(f"無法取得貓貓圖片: {e}")
 
