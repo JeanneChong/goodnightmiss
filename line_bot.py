@@ -98,21 +98,43 @@ def handle_message(event):
         cursor.execute("UPDATE users SET pending_action = 'water' WHERE user_id = ?", (user_id,))
         conn.commit()
         send_message(user_id, '請輸入每日飲水頻率（分鐘）：')
+    elif message_text == '我要看貓貓':
+        try:
+            url = 'https://www.funnycatpix.com/'
+            r = requests.get(url)
+            soup = BeautifulSoup(r.text, "html.parser")
+            imgs = soup.find_all('img')
+            img_url = random.choice(imgs)['src']
+            if not img_url.startswith('http'):
+                img_url = url + img_url
+            send_message(user_id, f"這是您的貓貓: {img_url}，要加油哦！")
+        except Exception as e:
+            send_message(user_id, f"無法取得貓貓圖片: {e}")
+    elif message_text == 'ok':
+        cursor.execute("DELETE FROM reminders WHERE user_id = ?", (user_id,))
+        conn.commit()
+        send_message(user_id, "Yes, my lord. 不好意思打擾您了，已解除提醒。如有需要，請再次呼喚我。隨時候命，只待您的吩咐。")
     else:
         # 根據 pending_action 進行相應的處理
         cursor.execute("SELECT pending_action FROM users WHERE user_id = ?", (user_id,))
         pending_action = cursor.fetchone()
         if pending_action:
             pending_action = pending_action[0]
-            if pending_action == 'medication':
-                med_name = message_text
-                send_message(user_id, '請輸入服用時間（24小時制（如08:00），使用逗號分隔多個時間）：')
-                cursor.execute("UPDATE users SET pending_action = ? WHERE user_id = ?", (f'medication:{med_name}', user_id))
+            if pending_action.startswith('medication:'):
+                med_name = pending_action.split(':')[1]
+                med_times = message_text
+                cursor.execute("INSERT INTO reminders (user_id, type, name, times) VALUES (?, ?, ?, ?)", (user_id, 'med', med_name, med_times))
                 conn.commit()
-            elif pending_action == 'supplement':
-                supplement_name = message_text
-                send_message(user_id, '請輸入服用時間（24小時制（如08:00），使用逗號分隔多個時間）：')
-                cursor.execute("UPDATE users SET pending_action = ? WHERE user_id = ?", (f'supplement:{supplement_name}', user_id))
+                send_message(user_id, f"已設定吃藥提醒：【{med_name}】 {med_times}")
+                cursor.execute("UPDATE users SET pending_action = NULL WHERE user_id = ?", (user_id,))
+                conn.commit()
+            elif pending_action.startswith('supplement:'):
+                supplement_name = pending_action.split(':')[1]
+                supplement_times = message_text
+                cursor.execute("INSERT INTO reminders (user_id, type, name, times) VALUES (?, ?, ?, ?)", (user_id, 'supplement', supplement_name, supplement_times))
+                conn.commit()
+                send_message(user_id, f"已設定吃保健品提醒：【{supplement_name}】 {supplement_times}")
+                cursor.execute("UPDATE users SET pending_action = NULL WHERE user_id = ?", (user_id,))
                 conn.commit()
             elif pending_action == 'water':
                 water_frequency = message_text
@@ -123,6 +145,5 @@ def handle_message(event):
 # 啓動 Flask 應用程式
 if __name__ == "__main__":
     app.run(debug = True)
-
 
 
